@@ -54,3 +54,6 @@ Thumbs.db
 .env
 __pycache__/
 *.pyc
+
+# credentials.json
+*credentials.json
