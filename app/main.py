@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from app.api import endpoints
+from app.database import engine
+from app.models import models
 
+models.Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Filmmaker AI Platform API",
     description="APIs for video generation, image creation, and script analysis for filmmakers.",

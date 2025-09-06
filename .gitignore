@@ -61,3 +61,7 @@ __pycache__/
 
 # ignore temporary files
 generated_images/
+generated_videos/
+
+# SQLite database files
+*.db

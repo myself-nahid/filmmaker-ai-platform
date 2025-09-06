@@ -1,5 +1,23 @@
 from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime
+from .models import TaskStatus 
+
+class TaskBase(BaseModel):
+    prompt: str
+
+class TaskCreate(TaskBase):
+    pass
+
+class Task(TaskBase):
+    id: str
+    status: TaskStatus
+    result_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True 
 
 class VideoGenerationRequest(BaseModel):
     prompt: str = Field(..., example="A cinematic shot of a futuristic city at sunset.")

@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_CREDENTIALS_FILE: str
     GOOGLE_CLOUD_PROJECT_ID: str
     GOOGLE_CLOUD_LOCATION: str
+    DATABASE_URL: str
 
     class Config:
         env_file = ".env"

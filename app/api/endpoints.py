@@ -1,23 +1,49 @@
-# app/api/endpoints.py
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Depends
+from sqlalchemy.orm import Session
 from app.models import schemas
 from app.services import ai_services, google_drive
+from app import crud
+from app.database import SessionLocal, get_db
+from app.models.models import TaskStatus
 import os
 
 router = APIRouter()
 
-def process_video_generation(prompt: str):
-    """A wrapper function for the background task."""
-    video_url = ai_services.generate_video_from_prompt(prompt)
-    print(f"Video generated: {video_url}")
+def process_video_generation(task_id: str, prompt: str):
+    db = SessionLocal()
+    try:
+        crud.update_task(db, task_id=task_id, status=TaskStatus.PROCESSING)
+        print(f"Task {task_id}: Started processing.")
+        
+        video_url = ai_services.generate_video_from_prompt(prompt)
+        
+        crud.update_task(db, task_id=task_id, status=TaskStatus.COMPLETED, result_url=video_url)
+        print(f"Task {task_id}: Completed successfully.")
+
+    except Exception as e:
+        crud.update_task(db, task_id=task_id, status=TaskStatus.FAILED, result_url=str(e))
+        print(f"Task {task_id}: Failed. Error: {e}")
+    finally:
+        db.close()
 
 @router.post("/generate-video", response_model=schemas.VideoGenerationResponse)
-async def generate_video(request: schemas.VideoGenerationRequest, background_tasks: BackgroundTasks):
-    """
-    Generate a video from a text prompt. This is a long-running task and will be processed in the background.
-    """
-    background_tasks.add_task(process_video_generation, request.prompt)
-    return {"task_id": "some_unique_task_id", "message": "Video generation started in the background."}
+async def generate_video(
+    request: schemas.VideoGenerationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    task = crud.create_task(db=db, prompt=request.prompt)
+    
+    background_tasks.add_task(process_video_generation, task.id, task.prompt)
+    
+    return {"task_id": task.id, "message": "Video generation task has been submitted."}
+
+@router.get("/tasks/{task_id}", response_model=schemas.Task)
+async def get_task_status(task_id: str, db: Session = Depends(get_db)):
+    db_task = crud.get_task(db, task_id=task_id)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db_task
 
 @router.post("/generate-image", response_model=schemas.ImageGenerationResponse)
 async def generate_image(request: schemas.ImageGenerationRequest):
