@@ -57,3 +57,7 @@ __pycache__/
 
 # credentials.json
 *credentials.json
+*.json
+
+# ignore temporary files
+generated_images/

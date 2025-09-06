@@ -1,4 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks
+# app/api/endpoints.py
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 from app.models import schemas
 from app.services import ai_services, google_drive
 import os
@@ -13,7 +14,7 @@ def process_video_generation(prompt: str):
 @router.post("/generate-video", response_model=schemas.VideoGenerationResponse)
 async def generate_video(request: schemas.VideoGenerationRequest, background_tasks: BackgroundTasks):
     """
-    Generate a video from a text prompt. This is a long-running task and will be processed in the background. [2, 12]
+    Generate a video from a text prompt. This is a long-running task and will be processed in the background.
     """
     background_tasks.add_task(process_video_generation, request.prompt)
     return {"task_id": "some_unique_task_id", "message": "Video generation started in the background."}
@@ -24,6 +25,13 @@ async def generate_image(request: schemas.ImageGenerationRequest):
     Generate an image from a text prompt.
     """
     image_url = ai_services.generate_image_from_prompt(request.prompt)
+    
+    if image_url is None:
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to generate image. Check server logs for more details."
+        )
+        
     return {"image_url": image_url}
 
 @router.post("/analyze-script-text", response_model=schemas.ScriptAnalysisResponse)

@@ -45,7 +45,20 @@ def generate_image_from_prompt(prompt: str):
 
         if response.images:
             image = response.images[0]
-            return f"generated_image_{hash(prompt)}.png"
+            # return f"generated_image_{hash(prompt)}.png"
+            output_dir = "generated_images"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # 2. Create a unique filename and the full path
+            file_name = f"image_{hash(prompt)}.png"
+            file_path = os.path.join(output_dir, file_name)
+            
+            # 3. Save the image data to the file path
+            image.save(location=file_path)
+            print(f"Image successfully saved to: {file_path}")
+            
+            # 4. Return the path so you know where it is
+            return file_path
         
         return None
     except Exception as e:
