@@ -76,32 +76,55 @@ def generate_video_from_prompt(prompt: str):
         print(f"AI SERVICE: CRITICAL FAILURE during video generation with Kie.ai: {e}")
         raise e
 
-
-def generate_image_from_prompt(prompt: str):
+def generate_image_from_prompt_async(prompt: str):
     """
-    Generates an image based on a text prompt using the Imagen model via Vertex AI.
+    Submits an asynchronous image generation job to the Kie.ai GPT-4o endpoint
+    and returns the Kie.ai task ID.
     """
+    print(f"AI SERVICE: Submitting 'gpt4o-image' job to Kie.ai for prompt: '{prompt}'")
+    
+    headers = {
+        "Authorization": f"Bearer {KIE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    submit_url = "https://api.kie.ai/api/v1/gpt4o-image/generate"
+    
+    callback_url = f"{settings.PUBLIC_SERVER_URL}/api/v1/kie-callback"
+    print(f"AI SERVICE: Providing this callback URL to Kie.ai: {callback_url}")
+    submit_payload = {
+        "prompt": prompt,
+        "filesUrl": [], 
+        "size": "1:1",
+        "callBackUrl": callback_url,
+        "isEnhance": False,
+        "nVariants": 1
+    }
+    
     try:
-        model = ImageGenerationModel.from_pretrained("imagegeneration@005")
-        response = model.generate_images(
-            prompt=prompt,
-            number_of_images=1,
-        )
-
-        if response.images:
-            image = response.images[0]
-            output_dir = "generated_images"
-            os.makedirs(output_dir, exist_ok=True)
-            file_name = f"image_{hash(prompt)}.png"
-            file_path = os.path.join(output_dir, file_name)
-            image.save(location=file_path)
-            print(f"Image successfully saved to: {file_path}")
-            return file_path
+        print(f"AI SERVICE: SENDING THIS EXACT GPT4O-IMAGE PAYLOAD: {submit_payload}")
+        submit_response = requests.post(submit_url, headers=headers, json=submit_payload)
         
-        return None
+        if submit_response.status_code != 200:
+            print(f"AI SERVICE: ERROR - Kie.ai returned status {submit_response.status_code}")
+            print(f"AI SERVICE: Response Body: {submit_response.text}")
+            submit_response.raise_for_status()
+
+        response_data = submit_response.json()
+        print(f"AI SERVICE: RECEIVED RAW RESPONSE FROM KIE.AI: {response_data}")
+        
+        data_dict = response_data.get("data") or {}
+        job_id = data_dict.get("taskId")
+        
+        if not job_id:
+            raise Exception("API reported success but did not return a recognizable job ID.")
+            
+        print(f"AI SERVICE: Image job submitted successfully. Task ID: {job_id}")
+        return job_id
+
     except Exception as e:
-        print(f"Error generating image: {e}")
-        return None
+        print(f"AI SERVICE: CRITICAL FAILURE during image submission with Kie.ai: {e}")
+        raise e
 
 def analyze_script(script_text: str):
     """

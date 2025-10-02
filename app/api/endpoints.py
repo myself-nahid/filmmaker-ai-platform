@@ -45,20 +45,21 @@ async def get_task_status(task_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
 
-@router.post("/generate-image", response_model=schemas.ImageGenerationResponse)
-async def generate_image(request: schemas.ImageGenerationRequest):
+
+@router.post("/generate-image", response_model=schemas.VideoGenerationResponse) 
+async def generate_image(
+    request: schemas.ImageGenerationRequest, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """
-    Generate an image from a text prompt.
+    Starts an asynchronous image generation task and returns a task ID for tracking.
     """
-    image_url = ai_services.generate_image_from_prompt(request.prompt)
+    task = crud.create_task(db=db, prompt=request.prompt)
     
-    if image_url is None:
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to generate image. Check server logs for more details."
-        )
-        
-    return {"image_url": image_url}
+    background_tasks.add_task(process_image_generation, task.id, task.prompt)
+    
+    return {"task_id": task.id, "message": "Image generation task has been submitted."}
 
 @router.post("/analyze-script-text", response_model=schemas.ScriptAnalysisResponse)
 async def analyze_script_from_text(request: schemas.ScriptAnalysisRequest):
@@ -161,5 +162,20 @@ def process_video_generation(task_id: str, prompt: str):
     except Exception as e:
         crud.update_task(db, task_id=task_id, status=TaskStatus.FAILED, result_url=str(e))
         print(f"Task {task_id}: Failed during submission. Error: {e}")
+    finally:
+        db.close()
+
+
+def process_image_generation(task_id: str, prompt: str):
+    db = SessionLocal()
+    try:
+        crud.update_task(db, task_id=task_id, status=TaskStatus.PROCESSING)
+        kie_task_id = ai_services.generate_image_from_prompt_async(prompt)
+        crud.link_task_ids(db, internal_task_id=task_id, external_task_id=kie_task_id)
+        print(f"Task {task_id}: Image job successfully submitted to Kie.ai and linked with their Task ID: {kie_task_id}.")
+
+    except Exception as e:
+        crud.update_task(db, task_id=task_id, status=TaskStatus.FAILED, result_url=str(e))
+        print(f"Task {task_id}: Failed during image submission. Error: {e}")
     finally:
         db.close()
