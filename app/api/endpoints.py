@@ -75,7 +75,7 @@ async def analyze_script_from_file(file: UploadFile = File(...)):
     Analyze a screenplay from an uploaded file.
     """
     contents = await file.read()
-    script_text = contents.decode("utf-8")
+    script_text = contents.decode("latin1")
     analysis = ai_services.analyze_script(script_text)
     return {"analysis": analysis}
 

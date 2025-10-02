@@ -130,7 +130,7 @@ def analyze_script(script_text: str):
     """
     Analyzes a screenplay using the Gemini model.
     """
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     prompt = f"Analyze the following screenplay for plot structure, character development, and dialogue quality:\n\n{script_text}"
     response = model.generate_content(prompt)
     return response.text
