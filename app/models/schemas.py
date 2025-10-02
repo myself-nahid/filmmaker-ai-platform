@@ -37,3 +37,9 @@ class ScriptAnalysisRequest(BaseModel):
 
 class ScriptAnalysisResponse(BaseModel):
     analysis: str
+
+class KieCallbackData(BaseModel):
+    taskId: str
+    status: str
+    output_url: Optional[str] = None
+    error: Optional[str] = None

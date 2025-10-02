@@ -3,6 +3,8 @@ from app.core.config import settings
 import time
 import os
 from google.oauth2 import service_account
+import requests  
+import time
 
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 import vertexai
@@ -17,31 +19,63 @@ vertexai.init(
     credentials=credentials
 )
 
+KIE_API_KEY = settings.KIE_API_KEY
+KIE_API_BASE_URL = "https://api.kie.ai/api/v1/runway/generate" 
+
 def generate_video_from_prompt(prompt: str):
     """
-    Generates a video based on a text prompt.
-    This function now creates a tiny, but structurally valid, MP4 file.
+    Generates a video by submitting a job to the Kie.ai API and providing a
+    callback URL for the result.
     """
-    print(f"Starting video generation for prompt: '{prompt}'")
+    print(f"AI SERVICE: Submitting 'veo3' job to Kie.ai for prompt: '{prompt}'")
+    
+    headers = {
+        "Authorization": f"Bearer {KIE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    submit_url = "https://api.kie.ai/api/v1/veo/generate"
+    
+    callback_url = f"{settings.PUBLIC_SERVER_URL}/api/v1/kie-callback"
+    print(f"AI SERVICE: Providing this callback URL to Kie.ai: {callback_url}")
 
-    dummy_video_bytes = b'\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00isommp42\x00\x00\x00\x08free\x00\x00\x00\x00mdat'
-
-    time.sleep(10) 
-    print("AI model has finished generating video data.")
-
-    output_dir = "generated_videos"
-    os.makedirs(output_dir, exist_ok=True)
-    file_name = f"video_{hash(prompt)}.mp4"
-    file_path = os.path.join(output_dir, file_name)
-
+    submit_payload = {
+        "prompt": prompt,
+        "model": "veo3",
+        "aspectRatio": "16:9",
+        "callBackUrl": callback_url 
+    }
+    
     try:
-        with open(file_path, "wb") as f:
-            f.write(dummy_video_bytes)
-        print(f"Video data successfully WRITTEN IN BINARY to: {file_path}")
-        return file_path
+        print(f"AI SERVICE: SENDING THIS EXACT VEO3 PAYLOAD: {submit_payload}")
+        submit_response = requests.post(submit_url, headers=headers, json=submit_payload)
+        
+        if submit_response.status_code != 200:
+            print(f"AI SERVICE: ERROR - Kie.ai returned status {submit_response.status_code}")
+            print(f"AI SERVICE: Response Body: {submit_response.text}")
+            submit_response.raise_for_status()
+
+        response_data = submit_response.json()
+        print(f"AI SERVICE: RECEIVED RAW RESPONSE FROM KIE.AI: {response_data}")
+        
+        data_dict = response_data.get("data") or {}
+        job_id = data_dict.get("taskId")
+        
+        if not job_id:
+            raise Exception("API reported success but did not return a recognizable job ID.")
+            
+        print(f"AI SERVICE: Job submitted successfully. Task ID: {job_id}")
+        
+        return job_id
+
+    except requests.exceptions.HTTPError as http_err:
+        print(f"AI SERVICE: HTTP ERROR: {http_err}")
+        print(f"AI SERVICE: Response Body: {http_err.response.text}")
+        raise http_err
     except Exception as e:
-        print(f"!!! FAILED TO WRITE FILE: {e} !!!")
+        print(f"AI SERVICE: CRITICAL FAILURE during video generation with Kie.ai: {e}")
         raise e
+
 
 def generate_image_from_prompt(prompt: str):
     """

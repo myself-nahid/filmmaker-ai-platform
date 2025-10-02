@@ -20,3 +20,14 @@ def update_task(db: Session, task_id: str, status: TaskStatus, result_url: str =
         db.commit()
         db.refresh(db_task)
     return db_task
+
+def link_task_ids(db: Session, internal_task_id: str, external_task_id: str):
+    db_task = get_task(db, internal_task_id)
+    if db_task:
+        db_task.external_id = external_task_id
+        db.commit()
+        db.refresh(db_task)
+    return db_task
+
+def get_task_by_external_id(db: Session, external_id: str):
+    return db.query(models.Task).filter(models.Task.external_id == external_id).first()
