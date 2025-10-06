@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, String, DateTime, Enum
+from sqlalchemy import Column, String, DateTime, Enum, INTEGER
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
@@ -21,3 +21,4 @@ class Task(Base):
     result_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    owner_id = Column(String, index=True)

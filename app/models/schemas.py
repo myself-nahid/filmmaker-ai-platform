@@ -21,14 +21,14 @@ class Task(TaskBase):
 
 class VideoGenerationRequest(BaseModel):
     prompt: str = Field(..., example="A cinematic shot of a futuristic city at sunset.")
-
+    user_id: str
 class VideoGenerationResponse(BaseModel):
     task_id: str
     message: str
 
 class ImageGenerationRequest(BaseModel):
     prompt: str = Field(..., example="A hyper-realistic portrait of a golden retriever wearing a crown.")
-
+    user_id: str
 class ImageGenerationResponse(BaseModel):
     image_url: str
 

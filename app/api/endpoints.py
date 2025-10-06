@@ -32,17 +32,17 @@ async def generate_video(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    task = crud.create_task(db=db, prompt=request.prompt)
+    task = crud.create_task(db=db, prompt=request.prompt, owner_id=request.user_id)
     
     background_tasks.add_task(process_video_generation, task.id, task.prompt)
     
     return {"task_id": task.id, "message": "Video generation task has been submitted."}
 
 @router.get("/tasks/{task_id}", response_model=schemas.Task)
-async def get_task_status(task_id: str, db: Session = Depends(get_db)):
-    db_task = crud.get_task(db, task_id=task_id)
+async def get_task_status(task_id: str, user_id: str, db: Session = Depends(get_db)): 
+    db_task = crud.get_task_for_user(db, task_id=task_id, owner_id=user_id) 
     if db_task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="Task not found or you do not have permission to view it")
     return db_task
 
 
@@ -55,7 +55,7 @@ async def generate_image(
     """
     Starts an asynchronous image generation task and returns a task ID for tracking.
     """
-    task = crud.create_task(db=db, prompt=request.prompt)
+    task = crud.create_task(db=db, prompt=request.prompt, owner_id=request.user_id)
     
     background_tasks.add_task(process_image_generation, task.id, task.prompt)
     

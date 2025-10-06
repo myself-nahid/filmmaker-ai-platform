@@ -5,8 +5,8 @@ from .models.models import TaskStatus
 def get_task(db: Session, task_id: str):
     return db.query(models.Task).filter(models.Task.id == task_id).first()
 
-def create_task(db: Session, prompt: str):
-    db_task = models.Task(prompt=prompt)
+def create_task(db: Session, prompt: str, owner_id: str):
+    db_task = models.Task(prompt=prompt, owner_id=owner_id)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -31,3 +31,9 @@ def link_task_ids(db: Session, internal_task_id: str, external_task_id: str):
 
 def get_task_by_external_id(db: Session, external_id: str):
     return db.query(models.Task).filter(models.Task.external_id == external_id).first()
+
+def get_task_for_user(db: Session, task_id: str, owner_id: str):
+    return db.query(models.Task).filter(
+        models.Task.id == task_id,
+        models.Task.owner_id == owner_id
+    ).first()
