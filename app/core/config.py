@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     KIE_API_KEY: str
     PUBLIC_SERVER_URL: str
+    MAIN_BACKEND_SAVE_URL: str
 
     class Config:
         env_file = ".env"
