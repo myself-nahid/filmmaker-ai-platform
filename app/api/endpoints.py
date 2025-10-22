@@ -1,4 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Depends, Request
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Depends, Request, Form
+from typing import Optional, Any
 from sqlalchemy.orm import Session
 from app.models import schemas
 from app.services import ai_services, google_drive
@@ -6,7 +7,6 @@ from app import crud
 from app.database import SessionLocal, get_db
 from app.models.models import TaskStatus
 import os
-
 router = APIRouter()
 
 def process_video_generation(task_id: str, prompt: str):
@@ -61,22 +61,44 @@ async def generate_image(
     
     return {"task_id": task.id, "message": "Image generation task has been submitted."}
 
-@router.post("/analyze-script-text", response_model=schemas.ScriptAnalysisResponse)
-async def analyze_script_from_text(request: schemas.ScriptAnalysisRequest):
+@router.post("/analyze-script", response_model=schemas.ScriptAnalysisResponse)
+async def analyze_script(
+    script_text: Optional[str] = Form(None),
+    file: Any = File(None) 
+):
     """
-    Analyze a screenplay provided as text.
+    Analyzes a screenplay from either an uploaded file or raw text.
+    - If a file is provided, it will be prioritized and analyzed.
+    - If no file is provided, the script_text will be analyzed.
+    - If neither is provided, an error is returned.
     """
-    analysis = ai_services.analyze_script(request.script_text)
-    return {"analysis": analysis}
+    
+    final_script_text = ""
 
-@router.post("/analyze-script-file", response_model=schemas.ScriptAnalysisResponse)
-async def analyze_script_from_file(file: UploadFile = File(...)):
-    """
-    Analyze a screenplay from an uploaded file.
-    """
-    contents = await file.read()
-    script_text = contents.decode("latin1")
-    analysis = ai_services.analyze_script(script_text)
+    if isinstance(file, UploadFile):
+        print("Processing script from uploaded file.")
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+        
+        try:
+            final_script_text = contents.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="Could not decode the file. Please ensure it is a valid text file.")
+
+    elif script_text:
+        print("Processing script from raw text input.")
+        final_script_text = script_text
+
+    else:
+        raise HTTPException(status_code=400, detail="You must provide either a script file or script text to analyze.")
+
+    if not final_script_text.strip():
+        raise HTTPException(status_code=400, detail="The provided script content is empty or contains only whitespace.")
+
+    print("Sending script to AI for analysis...")
+    analysis = ai_services.analyze_script(final_script_text)
+    
     return {"analysis": analysis}
 
 @router.post("/upload-to-drive")
