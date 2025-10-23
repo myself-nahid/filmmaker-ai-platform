@@ -1,5 +1,5 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Form, UploadFile, File
+from typing import Optional, List
 from app.services import service
 from pydantic import BaseModel
 from app.core.config import settings
@@ -13,7 +13,8 @@ class GenerationRequest(BaseModel):
     prompt: str
 
 class ScriptRequest(BaseModel):
-    script_text: str
+    prompt: str = Form(...),
+    files: list[UploadFile] = File(...)
 
 # --- ENDPOINTS ---
 @router.post("/generate-video")
@@ -27,8 +28,19 @@ async def generate_image(request: GenerationRequest, background_tasks: Backgroun
     return {"status": "image generation job accepted"}
 
 @router.post("/analyze-script")
-async def analyze_script(request: ScriptRequest):
-    return service.analyze_script(request.script_text)
+async def analyze_script(
+    prompt: Optional[str] = Form(None), 
+    files: Optional[List[UploadFile]] = File(None)
+):
+    """
+    Analyzes a screenplay from an optional uploaded file and/or optional text prompt.
+    """
+    # We must have at least a prompt or a file
+    if not prompt and not files:
+        raise HTTPException(status_code=400, detail="You must provide either a script file or a text prompt.")
+
+    # Pass the received data to the service layer for processing
+    return await service.analyze_script(prompt=prompt, files=files)
 
 @router.post("/kie-callback")
 async def kie_callback(request: Request, internal_task_id: str):

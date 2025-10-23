@@ -1,4 +1,6 @@
 import os
+from fastapi import UploadFile
+from typing import Optional, List
 import requests
 import google.generativeai as genai
 from app.core.config import settings
@@ -33,8 +35,29 @@ async def submit_kie_job(prompt: str, internal_task_id: str, service_type: str):
     return response.json()
 
 # --- Script Analysis ---
-def analyze_script(script_text: str):
+async def analyze_script(prompt: Optional[str] = None, files: Optional[List[UploadFile]] = None):
+    """
+    Analyzes a screenplay by combining a text prompt and the content of uploaded files.
+    """
     model = genai.GenerativeModel('gemini-2.5-flash')
-    prompt = f"Analyze the following screenplay for plot structure, character development, and dialogue quality:\n\n{script_text}"
-    response = model.generate_content(prompt)
+    
+    script_content = ""
+    # Read the content from each uploaded file
+    if files:
+        for file in files:
+            contents = await file.read()
+            try:
+                # Append the decoded text to our script_content string
+                script_content += contents.decode("utf-8") + "\n\n"
+            except UnicodeDecodeError:
+                # Handle cases where the file is not a valid text file
+                print(f"Warning: Could not decode file {file.filename}. It might not be a text file.")
+                continue
+
+    # Combine the user's prompt (if any) with the file content
+    full_prompt = f"Analyze the following screenplay content based on this user instruction: '{prompt or 'Provide a general analysis.'}'\n\n--- SCRIPT CONTENT START ---\n{script_content}\n--- SCRIPT CONTENT END ---"
+    
+    print("Sending combined prompt and script to Gemini for analysis...")
+    response = model.generate_content(full_prompt)
+    
     return {"analysis": response.text}
