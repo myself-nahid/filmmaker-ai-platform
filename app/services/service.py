@@ -53,11 +53,33 @@ async def analyze_script(prompt: Optional[str] = None, files: Optional[List[Uplo
                 # Handle cases where the file is not a valid text file
                 print(f"Warning: Could not decode file {file.filename}. It might not be a text file.")
                 continue
-
-    # Combine the user's prompt (if any) with the file content
-    full_prompt = f"Analyze the following screenplay content based on this user instruction: '{prompt or 'Provide a general analysis.'}'\n\n--- SCRIPT CONTENT START ---\n{script_content}\n--- SCRIPT CONTENT END ---"
     
-    print("Sending combined prompt and script to Gemini for analysis...")
+    # Construct a professional, structured prompt
+    full_prompt = f"""You are an expert screenplay analyst with extensive experience in script evaluation, story structure, and cinematic storytelling. 
+
+USER REQUEST:
+{prompt or 'Provide a comprehensive professional analysis of this screenplay.'}
+
+ANALYSIS INSTRUCTIONS:
+Please analyze the following screenplay with a focus on:
+- Story structure and narrative arc
+- Character development and motivations
+- Dialogue quality and authenticity
+- Pacing and dramatic tension
+- Visual storytelling elements
+- Commercial viability and target audience
+- Strengths and areas for improvement
+- Overall assessment and recommendations
+
+Provide specific examples from the script to support your analysis. Be constructive, detailed, and professional in your evaluation.
+
+--- SCREENPLAY CONTENT ---
+{script_content}
+--- END OF SCREENPLAY ---
+
+Please provide your professional analysis below:"""
+    
+    print("Sending structured prompt and screenplay to Gemini for analysis...")
     response = model.generate_content(full_prompt)
     
     return {"analysis": response.text}
