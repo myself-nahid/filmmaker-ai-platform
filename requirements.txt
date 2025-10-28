@@ -12,4 +12,6 @@ sqlalchemy
 python-decouple
 replicate 
 requests
-httpx 
+httpx
+pypdf
+python-docx

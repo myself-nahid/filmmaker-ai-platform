@@ -38,6 +38,9 @@ class ScriptAnalysisRequest(BaseModel):
 class ScriptAnalysisResponse(BaseModel):
     analysis: str
 
+class AnalysisResponse(BaseModel):
+    analysis: str
+
 class KieCallbackData(BaseModel):
     taskId: str
     status: str

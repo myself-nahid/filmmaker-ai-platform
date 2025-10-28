@@ -35,51 +35,87 @@ async def submit_kie_job(prompt: str, internal_task_id: str, service_type: str):
     return response.json()
 
 # --- Script Analysis ---
-async def analyze_script(prompt: Optional[str] = None, files: Optional[List[UploadFile]] = None):
+import docx
+from pypdf import PdfReader
+import io
+# --- END OF NEW IMPORTS ---
+
+# ... (keep your existing setup and submit_kie_job function)
+
+# --- SCRIPT ANALYSIS (NOW SEPARATED AND SIMPLIFIED) ---
+
+def read_uploaded_file(file: UploadFile) -> str:
     """
-    Analyzes a screenplay by combining a text prompt and the content of uploaded files.
+    Reads an UploadFile object, verifies its type using magic numbers, 
+    and returns its text content. Supports .txt, .pdf, and .docx.
+    """
+    filename = file.filename.lower()
+    content = ""
+    try:
+        # Read the entire file into memory once.
+        file_bytes = file.file.read()
+        if not file_bytes:
+            raise ValueError("The uploaded file is empty.")
+
+        # --- NEW: FILE TYPE VERIFICATION (MAGIC NUMBER CHECK) ---
+        is_pdf = file_bytes.startswith(b'%PDF-')
+        is_docx = file_bytes.startswith(b'PK\x03\x04') # DOCX files are zip archives
+        # --- END OF VERIFICATION ---
+
+        if filename.endswith('.pdf') and is_pdf:
+            print(f"Reading verified PDF file: {file.filename}")
+            reader = PdfReader(io.BytesIO(file_bytes))
+            for page in reader.pages:
+                content += page.extract_text() or ""
+        
+        elif filename.endswith('.docx') and is_docx:
+            print(f"Reading verified DOCX file: {file.filename}")
+            doc = docx.Document(io.BytesIO(file_bytes))
+            for para in doc.paragraphs:
+                content += para.text + "\n"
+        
+        else: # Default to assuming it's a text file
+            print(f"Reading file as plain text: {file.filename}")
+            try:
+                content = file_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                raise ValueError(f"File '{file.filename}' is not a valid PDF, DOCX, or UTF-8 text file.")
+
+        if not content.strip():
+            raise ValueError("Extracted text from the file is empty.")
+            
+        return content
+        
+    except ValueError as e:
+        # Re-raise our own validation errors to be caught by the endpoint
+        raise e
+    except Exception as e:
+        # Catch other parsing errors (e.g., from a corrupted but valid-looking file)
+        print(f"ERROR: Could not read file {file.filename}. Reason: {e}")
+        raise ValueError(f"Failed to process the file: {file.filename}. It may be corrupted or an unsupported format.")
+
+
+
+async def analyze_script(script_text: str):
+    """
+    Analyzes a given string of screenplay text using the Gemini API.
     """
     model = genai.GenerativeModel('gemini-2.5-flash')
     
-    script_content = ""
-    # Read the content from each uploaded file
-    if files:
-        for file in files:
-            contents = await file.read()
-            try:
-                # Append the decoded text to our script_content string
-                script_content += contents.decode("utf-8") + "\n\n"
-            except UnicodeDecodeError:
-                # Handle cases where the file is not a valid text file
-                print(f"Warning: Could not decode file {file.filename}. It might not be a text file.")
-                continue
-    
-    # Construct a professional, structured prompt
-    full_prompt = f"""You are an expert screenplay analyst with extensive experience in script evaluation, story structure, and cinematic storytelling. 
+    if not script_text or not script_text.strip():
+        raise ValueError("No script text provided for analysis.")
 
-USER REQUEST:
-{prompt or 'Provide a comprehensive professional analysis of this screenplay.'}
-
-ANALYSIS INSTRUCTIONS:
-Please analyze the following screenplay with a focus on:
-- Story structure and narrative arc
-- Character development and motivations
-- Dialogue quality and authenticity
-- Pacing and dramatic tension
-- Visual storytelling elements
-- Commercial viability and target audience
-- Strengths and areas for improvement
-- Overall assessment and recommendations
-
-Provide specific examples from the script to support your analysis. Be constructive, detailed, and professional in your evaluation.
+    full_prompt = f"""You are an expert screenplay analyst. Please provide a comprehensive professional analysis of the following screenplay content, focusing on structure, character, dialogue, pacing, and overall potential.
 
 --- SCREENPLAY CONTENT ---
-{script_content}
+{script_text}
 --- END OF SCREENPLAY ---
 
-Please provide your professional analysis below:"""
+Your analysis:"""
     
-    print("Sending structured prompt and screenplay to Gemini for analysis...")
-    response = model.generate_content(full_prompt)
-    
-    return {"analysis": response.text}
+    try:
+        response = model.generate_content(full_prompt)
+        return {"analysis": response.text}
+    except Exception as e:
+        print(f"ERROR: Gemini API call failed. Reason: {e}")
+        raise ValueError(f"Failed to get analysis from AI API: {e}")
