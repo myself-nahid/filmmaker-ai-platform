@@ -105,13 +105,35 @@ async def analyze_script(script_text: str):
     if not script_text or not script_text.strip():
         raise ValueError("No script text provided for analysis.")
 
-    full_prompt = f"""You are an expert screenplay analyst. Please provide a comprehensive professional analysis of the following screenplay content, focusing on structure, character, dialogue, pacing, and overall potential.
+    full_prompt = f"""You are a professional screenplay analyst. Provide a concise, actionable analysis of this script.
 
 --- SCREENPLAY CONTENT ---
 {script_text}
 --- END OF SCREENPLAY ---
 
-Your analysis:"""
+Deliver a focused analysis covering:
+
+**STRUCTURE** (3-4 sentences)
+- Plot architecture and pacing issues
+- Key turning points effectiveness
+
+**CHARACTERS** (3-4 sentences)
+- Protagonist arc strength
+- Character motivation clarity
+
+**DIALOGUE** (2-3 sentences)
+- Voice distinction and authenticity
+- Exposition quality
+
+**MARKETABILITY** (2-3 sentences)
+- Genre positioning and audience
+- Commercial strengths/weaknesses
+
+**VERDICT** (2-3 sentences)
+- Overall rating: Pass/Consider/Recommend
+- Top priority for revision
+
+Keep analysis under 400 words. Be specific and actionable."""
     
     try:
         response = model.generate_content(full_prompt)
